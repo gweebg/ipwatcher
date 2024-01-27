@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/gweebg/ipwatcher/internal/utils"
 	"github.com/spf13/viper"
+	"strings"
 )
 
 var config *viper.Viper
@@ -11,6 +12,20 @@ var config *viper.Viper
 type SourceUrl struct {
 	V4 *string `mapstructure:"v4"`
 	V6 *string `mapstructure:"v6"`
+}
+
+func (s SourceUrl) GetUrl(version string) (string, error) {
+
+	if strings.ToLower(version) == "v4" && s.V4 != nil {
+		return *s.V4, nil
+	}
+
+	if strings.ToLower(version) == "v6" && s.V6 != nil {
+		return *s.V6, nil
+	}
+
+	return "", errors.New("'" + version + "' is not specified in SourceUrl")
+
 }
 
 type Source struct {

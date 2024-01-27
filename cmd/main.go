@@ -2,6 +2,8 @@ package main
 
 import (
 	"github.com/gweebg/ipwatcher/internal/config"
+	"github.com/gweebg/ipwatcher/internal/fetch"
+	"github.com/gweebg/ipwatcher/internal/utils"
 	"log"
 )
 
@@ -9,25 +11,9 @@ func main() {
 
 	config.Init()
 
-	v4 := "v4"
-	v6 := "v6"
-	f := "field"
+	const version string = "v6"
+	addr, err := fetch.RequestAddress(version)
 
-	s := config.Source{
-		Name: "mock",
-		Url: config.SourceUrl{
-			V4: &v4,
-			V6: &v6,
-		},
-		Type:  "json",
-		Field: &f,
-	}
-	err := config.AddSource(s)
-
-	if err != nil {
-
-		log.Print(err.Error())
-	} else {
-		log.Println("good")
-	}
+	utils.Check(err, "")
+	log.Println(addr)
 }
