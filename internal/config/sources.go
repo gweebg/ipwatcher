@@ -31,7 +31,7 @@ type Source struct {
 	Field *string   `mapstructure:"field"`
 }
 
-func GetSources() ([]Source, error) {
+func getSources() ([]Source, error) {
 
 	var sources []Source
 

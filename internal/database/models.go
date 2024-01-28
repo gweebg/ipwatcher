@@ -15,8 +15,6 @@ type AddressEntry struct {
 	// PreviousAddress is the previous address, before the update
 	PreviousAddress string `json:"previous_address"`
 
-	// Source is the URL of the API that provided the updated address
-	Source string `json:"source"`
 	// Version specifies the version of the address this record refers to
 	Version string `json:"version"`
 	// CreatedAt is the UNIX time when the address update was detected
@@ -24,10 +22,14 @@ type AddressEntry struct {
 }
 
 // Create is the function that creates a new AddressEntry record onto the database
-func (e AddressEntry) Create(address string) (*AddressEntry, error) {
+func (e AddressEntry) Create(address string, version string, previous string) (*AddressEntry, error) {
 
 	database := GetDatabase()
-	entry := AddressEntry{Address: address}
+	entry := AddressEntry{
+		Address:         address,
+		Version:         version,
+		PreviousAddress: previous,
+	}
 
 	if err := database.Create(&entry).Error; err != nil {
 		return nil, err
@@ -45,7 +47,7 @@ func (e AddressEntry) First(addressVersion string) (*AddressEntry, error) {
 
 	query := database.
 		Where("version = ?", addressVersion).
-		Order("id desc").
+		Order("created_at DESC").
 		First(&entry)
 
 	if query.Error != nil {

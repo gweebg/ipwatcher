@@ -27,11 +27,11 @@ func Init(userFlags map[string]interface{}) {
 		config.Set("flags."+key, rv.Elem().Interface())
 	} // append the flags set by the user to the configuration object
 
-	parsedSources, err := GetSources()
+	parsedSources, err := getSources()
 	utils.Check(err, "")
 	config.Set("sources", parsedSources)
 
-	parsedEvents, err := GetEvents()
+	parsedEvents, err := getEvents()
 	utils.Check(err, "")
 	config.Set("watcher.events", parsedEvents)
 

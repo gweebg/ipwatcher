@@ -5,6 +5,8 @@ import (
 	"github.com/gweebg/ipwatcher/internal/config"
 	"github.com/gweebg/ipwatcher/internal/database"
 	"github.com/gweebg/ipwatcher/internal/utils"
+	"github.com/gweebg/ipwatcher/internal/watcher"
+	"log"
 )
 
 func main() {
@@ -26,7 +28,7 @@ func main() {
 	configFlags["version"] = flag.String(
 		"version",
 		"v4",
-		"version of the IP protocol, supports 'v4' | 'v6' | 'all'",
+		"version of the IP protocol, supports 'v4' | 'v6'",
 	)
 
 	configFlags["config"] = flag.String(
@@ -35,10 +37,10 @@ func main() {
 		"path to the configuration file",
 	)
 
-	configFlags["exec"] = flag.String(
+	configFlags["exec"] = flag.Bool(
 		"exec",
-		"on_change",
-		"run executable/script upon an event, supports 'on_change' | 'on_same' | 'always' | 'never'",
+		false,
+		"enable execution of configuration defined actions",
 	)
 
 	configFlags["api"] = flag.Bool(
@@ -55,6 +57,11 @@ func main() {
 
 	flag.Parse()
 
+	version := configFlags["version"].(*string)
+	if version == nil || (*version != "v4" && *version != "v6") {
+		log.Fatalf("flag 'version' must be either 'v4' or 'v6', not '%v'\n", *version)
+	}
+
 	config.Init(configFlags)
 
 	database.ConnectDatabase()
@@ -63,4 +70,10 @@ func main() {
 	err := db.AutoMigrate(&database.AddressEntry{})
 	utils.Check(err, "could not run AutoMigrate")
 
+	w := watcher.NewWatcher()
+
+	log.Printf("started watcher")
+	go w.Watch()
+
+	select {}
 }

@@ -55,7 +55,7 @@ type Events struct {
 	OnError *EventHandler `mapstructure:"on_error"`
 }
 
-func GetEvents() (*Events, error) {
+func getEvents() (*Events, error) {
 
 	config := GetConfig()
 	if config == nil {

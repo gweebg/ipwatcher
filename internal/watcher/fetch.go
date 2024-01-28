@@ -11,14 +11,12 @@ import (
 	"strings"
 
 	"github.com/gweebg/ipwatcher/internal/config"
-	"github.com/gweebg/ipwatcher/internal/utils"
 )
 
 func RequestAddress(version string) (string, error) {
 
 	conf := config.GetConfig()
-	sources, err := config.GetSources()
-	utils.Check(err, "")
+	sources := conf.Get("sources").([]config.Source)
 
 	address := ""
 
