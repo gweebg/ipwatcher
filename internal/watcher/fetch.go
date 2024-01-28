@@ -1,4 +1,4 @@
-package fetch
+package watcher
 
 import (
 	"bytes"
