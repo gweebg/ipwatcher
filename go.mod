@@ -2,12 +2,19 @@ module github.com/gweebg/ipwatcher
 
 go 1.21.1
 
-require github.com/spf13/viper v1.18.2
+require (
+	github.com/spf13/viper v1.18.2
+	gorm.io/driver/sqlite v1.5.4
+	gorm.io/gorm v1.25.6
+)
 
 require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
+	github.com/mattn/go-sqlite3 v1.14.17 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.1.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/gweebg/ipwatcher/internal/utils"
 	"github.com/spf13/viper"
+	"reflect"
 	"strings"
 )
 
@@ -35,7 +36,7 @@ type Source struct {
 	Field *string   `mapstructure:"field"`
 }
 
-func Init() {
+func Init(userFlags map[string]interface{}) {
 	// Todo: Maybe hot-reload ?
 	config = viper.New()
 
@@ -46,6 +47,11 @@ func Init() {
 
 	err := config.ReadInConfig()
 	utils.Check(err, "")
+
+	for key, val := range userFlags {
+		rv := reflect.ValueOf(val)
+		config.Set("flags."+key, rv.Elem().Interface())
+	}
 
 	err = validateSources()
 	utils.Check(err, "")
