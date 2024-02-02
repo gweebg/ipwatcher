@@ -13,12 +13,13 @@ import (
 	"github.com/gweebg/ipwatcher/internal/config"
 )
 
-func RequestAddress(version string) (string, error) {
+func RequestAddress(version string) (string, string, error) {
 
 	conf := config.GetConfig()
 	sources := conf.Get("sources").([]config.Source)
 
 	address := ""
+	fromSource := ""
 
 	const forceSource = "service.force_source"
 	for _, source := range sources {
@@ -48,18 +49,19 @@ func RequestAddress(version string) (string, error) {
 			continue
 		}
 
+		fromSource = url
 		log.Printf("valid address from source '%v'\n", source.Name)
 		break
 	}
 
 	// if address is still empty after querying the urls then, user needs to try others
 	if address == "" {
-		return address, errors.New(
-			"none of the specified sources returned a valid address or 'force_source' name missmatch",
+		return address, "", errors.New(
+			"none of the specified sources returned a valid address or 'force_source' name mismatch",
 		)
 	}
 
-	return address, nil
+	return address, fromSource, nil
 }
 
 func parseResponse(response *http.Response, source config.Source) string {

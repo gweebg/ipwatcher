@@ -68,12 +68,10 @@ func main() {
 	db := database.GetDatabase()
 
 	err := db.AutoMigrate(&database.AddressEntry{})
-	utils.Check(err, "could not run AutoMigrate")
+	utils.Check(err, "could not run database AutoMigrate")
 
 	w := watcher.NewWatcher()
 
-	log.Printf("started watcher")
-	go w.Watch()
-
-	select {}
+	log.Printf("started watcher loop")
+	w.Watch()
 }

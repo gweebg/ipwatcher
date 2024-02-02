@@ -20,10 +20,17 @@
 
 1. Database should store data relative to each time the address has changed.
 2. Database records should contain:
-  - Datetime of change (unix time)
-  - Previous address (string)
-  - New address (string)
-  - Address version (v4 | v6, string)
-  - Source of change (ipify, myip, etc., string)
-  - Id (uint)
+   - Datetime of change (unix time)
+   - Previous address (string)
+   - New address (string)
+   - Address version (v4 | v6, string)
+   - Source of change (ipify, myip, etc., string)
+   - Id (uint)
 3. Database should use sqlite3
+
+
+### Application
+
+1. Enable API
+2. Normal 
+3. Daemon
