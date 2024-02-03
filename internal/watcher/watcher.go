@@ -32,6 +32,9 @@ type Watcher struct {
 	notifier *Notifier
 	// fetcher is responsible for fetching information relative to the address
 	fetcher *Fetcher
+	// executor allows for the execution of configuration defined actions
+	executor *Executor
+
 	// Timeout represents the duration between each address query
 	Timeout time.Duration
 	// ticker is a *time.Ticker object responsible for waiting Timeout
@@ -57,6 +60,13 @@ func NewWatcher() *Watcher {
 		notifier = NewNotifier()
 	}
 
+	errorChan := make(chan error)
+
+	var executor *Executor = nil
+	if c.GetBool("flags.exec") {
+		executor = NewExecutor(errorChan)
+	}
+
 	return &Watcher{
 		Version:   c.GetString("flags.version"),
 		allowApi:  c.GetBool("flags.api"),
@@ -64,11 +74,13 @@ func NewWatcher() *Watcher {
 
 		notifier: notifier,
 		fetcher:  NewFetcher(),
-		Timeout:  timeout,
-		ticker:   time.NewTicker(timeout),
+		executor: executor,
+
+		Timeout: timeout,
+		ticker:  time.NewTicker(timeout),
 
 		tickerQuitChan: make(chan struct{}),
-		errorChan:      make(chan error),
+		errorChan:      errorChan,
 		logger:         GetLogger().With().Str("service", "watcher").Logger(),
 	}
 }
@@ -118,6 +130,7 @@ func (w *Watcher) HandleEvent(eventType string, ctx context.Context) {
 	if handler != nil {
 
 		if handler.Notify && w.notifier != nil {
+
 			err := w.notifier.NotifyMail(ctx)
 			if err != nil {
 				w.errorChan <- errors.Join(err, ErrorNotifier)
@@ -127,8 +140,8 @@ func (w *Watcher) HandleEvent(eventType string, ctx context.Context) {
 				Msgf("recipients (%d) notified", len(w.notifier.Recipients))
 		}
 
-		for _, exec := range handler.Actions {
-			w.logger.Info().Msgf("executing '%s %s %s'\n\n", exec.Type, exec.Path, exec.Args)
+		if w.executor != nil {
+			w.executor.ExecuteSlice(handler.Actions)
 		}
 	}
 }

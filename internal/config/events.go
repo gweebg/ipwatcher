@@ -2,6 +2,8 @@ package config
 
 import (
 	"errors"
+	"fmt"
+	"os/exec"
 	"reflect"
 	"strings"
 )
@@ -13,13 +15,26 @@ type Exec struct {
 	Path string `mapstructure:"path"`
 	// Args sets the arguments for the script
 	Args string `mapstructure:"args"`
+	// ExecPath is the path of the application to run the action
+	ExecPath string
 }
 
 func (s Exec) Validate() error {
 
+	// todo: allow for execPath to be specified in the configuration file
+
 	script := strings.ToLower(s.Type)
 	if script != "python" && script != "bash" && script != "binary" {
 		return errors.New("the 'type' field of an action can only be 'python', 'bash' or 'binary', not '" + script + "'")
+	}
+
+	installed := s.CheckInstalled()
+	if !installed {
+		return errors.New(
+			"could not find executable for '" + s.Type + "', you can check if it's installed by running 'which " + s.Type +
+				"'.\nalternatively you can specify the full path for the executable on the field 'exec_path' under 'actions'" +
+				" on the configuration file",
+		)
 	}
 
 	if s.Path == "" {
@@ -27,6 +42,20 @@ func (s Exec) Validate() error {
 	}
 
 	return nil
+}
+
+func (s Exec) CheckInstalled() bool {
+
+	_, err := exec.LookPath(s.Type)
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+func (s Exec) String() string {
+	return fmt.Sprintf("%v %v %v", s.Type, s.Path, s.Args)
 }
 
 type EventHandler struct {
@@ -37,8 +66,8 @@ type EventHandler struct {
 }
 
 func (e EventHandler) Validate() error {
-	for _, exec := range e.Actions {
-		err := exec.Validate()
+	for _, e := range e.Actions {
+		err := e.Validate()
 		if err != nil {
 			return err
 		}
