@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/rs/zerolog"
 	"io"
 	"net"
 	"net/http"
@@ -12,9 +13,17 @@ import (
 	"github.com/gweebg/ipwatcher/internal/config"
 )
 
-var fetchLogger = logger.With().Str("service", "fetcher").Logger()
+type Fetcher struct {
+	logger zerolog.Logger
+}
 
-func RequestAddress(version string) (string, string, error) {
+func NewFetcher() *Fetcher {
+	return &Fetcher{
+		logger: GetLogger().With().Str("service", "fetcher").Logger(),
+	}
+}
+
+func (f *Fetcher) RequestAddress(version string) (string, string, error) {
 
 	conf := config.GetConfig()
 	sources := conf.Get("sources").([]config.Source)
@@ -32,26 +41,26 @@ func RequestAddress(version string) (string, string, error) {
 
 		url, err := source.Url.GetUrl(version)
 		if err != nil {
-			fetchLogger.Error().Err(err).Str("source_name", source.Name).Msgf("source does not have any 'IP%v' url specified, skipping", version)
+			f.logger.Error().Err(err).Str("source_name", source.Name).Msgf("source does not have any 'IP%v' url specified, skipping", version)
 			continue
 		}
 
 		response, err := sendRequest(url)
 		if err != nil {
-			fetchLogger.Error().Err(err).Str("source_name", source.Name).Msg("failed to send request to source")
+			f.logger.Error().Err(err).Str("source_name", source.Name).Msg("failed to send request to source")
 			continue
 		}
 
-		address = parseResponse(response, source)
+		address = f.parseResponse(response, source)
 
 		valid := net.ParseIP(address)
 		if valid == nil {
-			fetchLogger.Error().Err(err).Str("source_name", source.Name).Msgf("source did not return a valid IP address: '%v', skipping", address)
+			f.logger.Error().Err(err).Str("source_name", source.Name).Msgf("source did not return a valid IP address: '%v', skipping", address)
 			continue
 		}
 
 		fromSource = url
-		fetchLogger.Debug().Str("source", url).Msgf("valid address from source '%v'", source.Name)
+		f.logger.Debug().Str("source", url).Msgf("valid address from source '%v'", source.Name)
 
 		break
 	}
@@ -66,11 +75,11 @@ func RequestAddress(version string) (string, string, error) {
 	return address, fromSource, nil
 }
 
-func parseResponse(response *http.Response, source config.Source) string {
+func (f *Fetcher) parseResponse(response *http.Response, source config.Source) string {
 
 	// check if http response status code is 'positive' (200<=status<300)
 	if !(response.StatusCode >= 200 && response.StatusCode < 300) {
-		fetchLogger.Warn().Msgf("'%v' returned %d", source.Name, response.StatusCode)
+		f.logger.Warn().Msgf("'%v' returned %d", source.Name, response.StatusCode)
 		return ""
 	}
 
@@ -83,7 +92,7 @@ func parseResponse(response *http.Response, source config.Source) string {
 		var address bytes.Buffer
 		_, err := io.Copy(&address, response.Body)
 		if err != nil {
-			fetchLogger.Error().Err(err).Str("source_name", source.Name).Msg("error reading response body")
+			f.logger.Error().Err(err).Str("source_name", source.Name).Msg("error reading response body")
 			return ""
 		}
 
@@ -95,20 +104,20 @@ func parseResponse(response *http.Response, source config.Source) string {
 		var responseBody map[string]interface{}
 		err := json.NewDecoder(response.Body).Decode(&responseBody)
 		if err != nil {
-			fetchLogger.Error().Err(err).Str("source_name", source.Name).Msg("error decoding JSON response")
+			f.logger.Error().Err(err).Str("source_name", source.Name).Msg("error decoding JSON response")
 			return ""
 		}
 
 		address, ok := responseBody[*source.Field]
 		if !ok {
-			fetchLogger.Error().Str("source_name", source.Name).Msgf("expected field '%v' to be present on response", *source.Field)
+			f.logger.Error().Str("source_name", source.Name).Msgf("expected field '%v' to be present on response", *source.Field)
 			return ""
 		}
 
 		return address.(string)
 	}
 
-	fetchLogger.Error().Str("source_name", source.Name).Msgf("content type between response and config mismatch, expected '%s' but got '%s'", source.Type, contentType)
+	f.logger.Error().Str("source_name", source.Name).Msgf("content type between response and config mismatch, expected '%s' but got '%s'", source.Type, contentType)
 	return ""
 }
 

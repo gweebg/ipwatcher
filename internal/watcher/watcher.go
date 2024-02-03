@@ -3,22 +3,14 @@ package watcher
 import (
 	"context"
 	"errors"
-	"github.com/gweebg/ipwatcher/internal/config"
-	"github.com/gweebg/ipwatcher/internal/database"
 	"github.com/rs/zerolog"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/gweebg/ipwatcher/internal/config"
+	"github.com/gweebg/ipwatcher/internal/database"
 )
-
-var logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
-	Level(zerolog.TraceLevel).
-	With().
-	Timestamp().
-	Caller().
-	Logger()
-
-var watcherLogger = logger.With().Str("service", "watcher").Logger()
 
 var (
 	ErrorDatabase = errors.New("database error")
@@ -38,6 +30,8 @@ type Watcher struct {
 
 	// notifier allows for email notification sending
 	notifier *Notifier
+	// fetcher is responsible for fetching information relative to the address
+	fetcher *Fetcher
 	// Timeout represents the duration between each address query
 	Timeout time.Duration
 	// ticker is a *time.Ticker object responsible for waiting Timeout
@@ -47,6 +41,8 @@ type Watcher struct {
 	tickerQuitChan chan struct{}
 	// errorChan handles errors coming from the event handlers
 	errorChan chan error
+	// logger is the logger for this service
+	logger zerolog.Logger
 }
 
 func NewWatcher() *Watcher {
@@ -67,17 +63,19 @@ func NewWatcher() *Watcher {
 		allowExec: c.GetBool("flags.exec"),
 
 		notifier: notifier,
+		fetcher:  NewFetcher(),
 		Timeout:  timeout,
 		ticker:   time.NewTicker(timeout),
 
 		tickerQuitChan: make(chan struct{}),
 		errorChan:      make(chan error),
+		logger:         GetLogger().With().Str("service", "watcher").Logger(),
 	}
 }
 
 func (w *Watcher) Watch() {
 
-	watcherLogger.Info().Msg("watcher service is now running")
+	w.logger.Info().Msg("watcher service is now running")
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -85,7 +83,7 @@ func (w *Watcher) Watch() {
 	go w.check()
 
 	for sig := range c {
-		watcherLogger.Warn().Msgf("received %v signal, stopping watcher...", sig.String())
+		w.logger.Warn().Msgf("received %v signal, stopping watcher...", sig.String())
 		w.Stop()
 		return
 	}
@@ -114,7 +112,7 @@ func (w *Watcher) HandleEvent(eventType string, ctx context.Context) {
 		handler = events.OnError
 
 	default:
-		watcherLogger.Fatal().Msgf("unknown event type '%v', skipping", eventType)
+		w.logger.Fatal().Msgf("unknown event type '%v', skipping", eventType)
 	}
 
 	if handler != nil {
@@ -124,13 +122,13 @@ func (w *Watcher) HandleEvent(eventType string, ctx context.Context) {
 			if err != nil {
 				w.errorChan <- errors.Join(err, ErrorNotifier)
 			}
-			watcherLogger.Debug().
+			w.logger.Info().
 				Str("event", eventType).
 				Msgf("recipients (%d) notified", len(w.notifier.Recipients))
 		}
 
 		for _, exec := range handler.Actions {
-			watcherLogger.Info().Msgf("executing '%s %s %s'\n\n", exec.Type, exec.Path, exec.Args)
+			w.logger.Info().Msgf("executing '%s %s %s'\n\n", exec.Type, exec.Path, exec.Args)
 		}
 	}
 }
@@ -147,7 +145,7 @@ func (w *Watcher) errors() {
 			w.HandleEvent("on_error", ctx) // handle on_error
 		}
 
-		watcherLogger.Error().Err(err).Msg("unexpected error")
+		w.logger.Error().Err(err).Msg("unexpected error")
 	}
 }
 
@@ -162,7 +160,7 @@ func (w *Watcher) check() {
 		case <-w.ticker.C:
 
 			// get the address from the desired source
-			address, source, err := RequestAddress(w.Version)
+			address, source, err := w.fetcher.RequestAddress(w.Version)
 			if err != nil {
 				w.errorChan <- errors.Join(err, ErrorFetch)
 				continue
@@ -190,7 +188,7 @@ func (w *Watcher) check() {
 			// compare addresses and handle accordingly
 			if address != previousAddress.Address {
 
-				watcherLogger.Info().
+				w.logger.Info().
 					Str("previous_address", previousAddress.Address).
 					Str("current_address", address).
 					Msgf("detected address change")
@@ -209,7 +207,7 @@ func (w *Watcher) check() {
 
 			} else {
 
-				watcherLogger.Debug().Msgf("no address changes")
+				w.logger.Info().Msgf("no address changes")
 
 				ctx = context.WithValue(ctx, "source", source)
 				go w.HandleEvent("on_match", ctx) // handle on_match

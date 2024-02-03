@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/gweebg/ipwatcher/internal/config"
+	"github.com/rs/zerolog"
 	"gopkg.in/gomail.v2"
 	"time"
 )
-
-var notifierLogger = logger.With().Str("service", "notifier").Logger()
 
 // Recipient represents a email recipient defined as per the configuration file
 type Recipient struct {
@@ -30,6 +29,7 @@ type Notifier struct {
 
 	// doneCh is a channel that indicates when the email set is sent
 	doneCh chan struct{}
+	logger zerolog.Logger
 }
 
 func NewNotifier() *Notifier {
@@ -43,22 +43,25 @@ func NewNotifier() *Notifier {
 		c.GetString("watcher.smtp.password"),
 	)
 
+	logger := GetLogger().With().Str("service", "notifier").Logger()
+
 	var recipients []Recipient
 	err := c.UnmarshalKey("watcher.smtp.recipients", &recipients)
 	if err != nil {
-		notifierLogger.Fatal().Err(err).Msgf("invalid 'watcher.smtp.recipients' configuration")
+		logger.Fatal().Err(err).Msgf("invalid 'watcher.smtp.recipients' configuration")
 	}
 
 	return &Notifier{
 		From:        c.GetString("watcher.smtp.from_address"),
 		Recipients:  recipients,
 		emailDialer: dialer,
+		logger:      logger,
 	}
 }
 
 func (n *Notifier) NotifyMail(ctx context.Context) error {
 
-	notifierLogger.Debug().Msg("dialing smtp server")
+	n.logger.Debug().Msg("dialing smtp server")
 
 	s, err := n.emailDialer.Dial()
 	if err != nil {
@@ -76,7 +79,7 @@ func (n *Notifier) NotifyMail(ctx context.Context) error {
 		m.SetBody("text/html", generateMailBody(ctx))
 
 		if err := gomail.Send(s, m); err != nil {
-			notifierLogger.Error().Err(err).Msgf("cannot send email to '%s'", r.Address)
+			n.logger.Error().Err(err).Msgf("cannot send email to '%s'", r.Address)
 		}
 		m.Reset()
 	}

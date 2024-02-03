@@ -55,6 +55,12 @@ func main() {
 		"enable email notifications, must be configured in settings",
 	)
 
+	configFlags["quiet"] = flag.Bool(
+		"quiet",
+		false,
+		"run application quietly, sets log level to Info instead of Debug",
+	)
+
 	flag.Parse()
 
 	version := configFlags["version"].(*string)
@@ -63,6 +69,7 @@ func main() {
 	}
 
 	config.Init(configFlags)
+	watcher.InitLogger()
 
 	database.ConnectDatabase()
 	db := database.GetDatabase()
