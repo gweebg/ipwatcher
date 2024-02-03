@@ -71,7 +71,5 @@ func main() {
 	utils.Check(err, "could not run database AutoMigrate")
 
 	w := watcher.NewWatcher()
-
-	log.Printf("started watcher loop")
 	w.Watch()
 }

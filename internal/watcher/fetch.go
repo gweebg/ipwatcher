@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"strings"
 
 	"github.com/gweebg/ipwatcher/internal/config"
 )
+
+var fetchLogger = logger.With().Str("service", "fetcher").Logger()
 
 func RequestAddress(version string) (string, string, error) {
 
@@ -31,13 +32,13 @@ func RequestAddress(version string) (string, string, error) {
 
 		url, err := source.Url.GetUrl(version)
 		if err != nil {
-			log.Printf("source '%v' does not have any 'IP%v' url specified, skipping\n", source.Name, version)
+			fetchLogger.Error().Err(err).Str("source_name", source.Name).Msgf("source does not have any 'IP%v' url specified, skipping", version)
 			continue
 		}
 
 		response, err := sendRequest(url)
 		if err != nil {
-			log.Printf("failed to send request to source '%v', skipping\n", source.Name)
+			fetchLogger.Error().Err(err).Str("source_name", source.Name).Msg("failed to send request to source")
 			continue
 		}
 
@@ -45,12 +46,13 @@ func RequestAddress(version string) (string, string, error) {
 
 		valid := net.ParseIP(address)
 		if valid == nil {
-			log.Printf("source '%v' did not return a valid IP address: '%v', skipping\n", source.Name, address)
+			fetchLogger.Error().Err(err).Str("source_name", source.Name).Msgf("source did not return a valid IP address: '%v', skipping", address)
 			continue
 		}
 
 		fromSource = url
-		log.Printf("valid address from source '%v'\n", source.Name)
+		fetchLogger.Debug().Str("source", url).Msgf("valid address from source '%v'", source.Name)
+
 		break
 	}
 
@@ -68,7 +70,7 @@ func parseResponse(response *http.Response, source config.Source) string {
 
 	// check if http response status code is 'positive' (200<=status<300)
 	if !(response.StatusCode >= 200 && response.StatusCode < 300) {
-		log.Printf("'%v' returned %d\n", source.Name, response.StatusCode)
+		fetchLogger.Warn().Msgf("'%v' returned %d", source.Name, response.StatusCode)
 		return ""
 	}
 
@@ -81,7 +83,7 @@ func parseResponse(response *http.Response, source config.Source) string {
 		var address bytes.Buffer
 		_, err := io.Copy(&address, response.Body)
 		if err != nil {
-			log.Printf("error reading response body from source '%v'", source.Name)
+			fetchLogger.Error().Err(err).Str("source_name", source.Name).Msg("error reading response body")
 			return ""
 		}
 
@@ -93,20 +95,20 @@ func parseResponse(response *http.Response, source config.Source) string {
 		var responseBody map[string]interface{}
 		err := json.NewDecoder(response.Body).Decode(&responseBody)
 		if err != nil {
-			log.Printf("error decoding JSON response from source '%v'", source.Name)
+			fetchLogger.Error().Err(err).Str("source_name", source.Name).Msg("error decoding JSON response")
 			return ""
 		}
 
 		address, ok := responseBody[*source.Field]
 		if !ok {
-			log.Printf("expected field '%v' present on response:\n\t%v", *source.Field, responseBody)
+			fetchLogger.Error().Str("source_name", source.Name).Msgf("expected field '%v' to be present on response", *source.Field)
 			return ""
 		}
 
 		return address.(string)
 	}
 
-	log.Printf("content type between response and config mismatch, expected '%s' but got '%s'\n", source.Type, contentType)
+	fetchLogger.Error().Str("source_name", source.Name).Msgf("content type between response and config mismatch, expected '%s' but got '%s'", source.Type, contentType)
 	return ""
 }
 

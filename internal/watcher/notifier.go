@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"github.com/gweebg/ipwatcher/internal/config"
 	"gopkg.in/gomail.v2"
-	"log"
 	"time"
 )
+
+var notifierLogger = logger.With().Str("service", "notifier").Logger()
 
 // Recipient represents a email recipient defined as per the configuration file
 type Recipient struct {
@@ -45,7 +46,7 @@ func NewNotifier() *Notifier {
 	var recipients []Recipient
 	err := c.UnmarshalKey("watcher.smtp.recipients", &recipients)
 	if err != nil {
-		log.Fatalf("invalid 'watcher.smtp.recipients' configuration: %v\n", err.Error())
+		notifierLogger.Fatal().Err(err).Msgf("invalid 'watcher.smtp.recipients' configuration")
 	}
 
 	return &Notifier{
@@ -56,6 +57,8 @@ func NewNotifier() *Notifier {
 }
 
 func (n *Notifier) NotifyMail(ctx context.Context) error {
+
+	notifierLogger.Debug().Msg("dialing smtp server")
 
 	s, err := n.emailDialer.Dial()
 	if err != nil {
@@ -73,7 +76,7 @@ func (n *Notifier) NotifyMail(ctx context.Context) error {
 		m.SetBody("text/html", generateMailBody(ctx))
 
 		if err := gomail.Send(s, m); err != nil {
-			log.Printf("could not send email to %q: %v", r.Address, err)
+			notifierLogger.Error().Err(err).Msgf("cannot send email to '%s'", r.Address)
 		}
 		m.Reset()
 	}
@@ -119,7 +122,7 @@ func generateOnChange(ctx context.Context) string {
 	</head>
 	<body style="font-family: Arial, sans-serif;">
 		<div style="background-color: #f0f0f0; padding: 20px;">
-			<h1 style="color: #333;">Your Public IP Address Has Updated</h1>
+			<h1 style="color: #333;">Watcher Update (Change)</h1>
 			<p style="font-size: 16px;">Hello <strong>%s</strong>, your public IP address has been changed. Here are the details:</p>
 			<ul style="font-size: 16px;">
 				<li><strong>Previous Address:</strong> %s</li>
@@ -146,7 +149,7 @@ func generateOnMatch(ctx context.Context) string {
 	</head>
 	<body style="font-family: Arial, sans-serif;">
 		<div style="background-color: #f0f0f0; padding: 20px;">
-			<h1 style="color: #333;">Your Public IP Address Has <strong>Not</strong> Changed</h1>
+			<h1 style="color: #333;">Watcher Update (Match)</h1>
 			<p style="font-size: 16px;">Hello <strong>%s</strong>, your public IP address is still the same. Here are the details:</p>
 			<ul style="font-size: 16px;">
 				<li><strong>At:</strong> %s</li>
