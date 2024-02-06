@@ -2,20 +2,43 @@
 
 `ipwatcher` is a robust IPv4/IPv6 address watchdog implemented in `Go`. It comes equipped with event actions, notifications, and exposes a REST API, enabling seamless integration with various systems and workflows.
 
-### Getting Started
+### Installation & Usage
 
-In Progress...
+Installing `ipwatcher` is pretty straightforward, clone the repository and then run `make` to generate the executable:
+```bash
+> git clone git@github.com:gweebg/ipwatcher.git
+> cd ipwatcher
+> make
+```
+This should generate the executable at `ipwatcher/bin`, with the name `ipwatcher`.
+
+To use the application,  just execute `ipwatcher` with:
+```bash
+> ./ipwatcher --version (v4|v6)
+```
+This will start the service and check for changes for the specified IP version according to the parameters set in the configuration file (see [Configuration](configuring-the-service)). You also have access to some general flags that toggle certain behaviours of the application:
+
+| Flag                  | Default      | Description                                                                               |
+|-----------------------|--------------|-------------------------------------------------------------------------------------------|
+| `--api`               | `false`      | Enable API mode, exposing a REST service on the port specified in the configuration file. |
+| `--config <path>`     | `config.yml` | Set the `path` for the configuration file                                                 |
+| `--exec`              | `true`       | Enable the execution of the actions defined in the configuration file.                    |
+| `--notify`            | `false`      | Enable notifications via email.                                                           |
+| `--version <v4\|v6>`  | `v4`         | Set the IP `version` for the watcher.                                                     |
+| `--quiet`             | `false`      | Set the log level to `info` instead of `debug`.                                           |
+
+
 
 ### Configuring the Service
 
-The configuration of the application is made via a YAML file, and allows to configure the different aspects that makes the application stand out. By default, the service assumes the configuration path of 
-`config.yml` on the root of the project, however this behaviour can be change by using the flag `--config <config_path>` when running the application. 
+The configuration of the application is made via a YAML file, and allows configuring the different aspects that make the application stand out. By default, the service assumes the configuration path of 
+`config.yml` in the root of the project, however, this behaviour can be changed by using the flag `--config <config_path>` when running the application. 
 
 Let's explore the configuration file, section by section.
 
 #### Sources Definition
 
-`ipwatcher` relies on already existing and public API's to retrieve your public address, for redundancy purpouses you cant defined one or more fall-back alternatives, used in case of failure of the previous one. 
+`ipwatcher` relies on already existing and public API's to retrieve your public address, for redundancy purposes you can define one or more fall-back alternatives, used in case of failure of the previous one. 
 
 ```yaml
 sources:
@@ -52,7 +75,7 @@ watcher:
   max_execution_time: 120 # in seconds
 ```
 
-On the `watcher` section of the configuration file you can specificy execution related settings, such as:
+On the `watcher` section of the configuration file, you can specify execution related settings, such as:
 - `timeout`, the time to wait between address checks (and consequently API calls)
 - `force_source`, forces only a source (by its name) to be used
 - `max_execution_time`, specifies the maximum time an action can be run for
@@ -82,7 +105,7 @@ watcher:
   ...
 ```
 
-Event handlers don't need to be defined as they are compeletly optional.
+Event handlers don't need to be defined, as they are completely optional. Note that event actions have, by default, 60 seconds to execute, this behaviour can be changed by updating `watcher.max_execution_time`.
 
 ### Notification Settings
 
@@ -110,5 +133,9 @@ When defining the `smtp` settings:
 - `smtp_server` represents the `stmp` server (for example, `smtp.gmail.com` for Gmail)
 - `stmp_port` is the port on which the `smtp_server` answers
 - `username` and `password` are the credentials for the `smtp_server`
-- `from_address` in this case should match the `username` and represents de sender email address
-- `recipients` define the recipients of the notifications, represented by their `address` and `name` (both mandatory) 
+- `from_address` in this case should match the `username` and represents the sender email address
+- `recipients` define the recipients of the notifications, represented by their `address` and `name` (both mandatory)
+
+## API Settings
+
+In Progress...
