@@ -11,18 +11,6 @@ import (
 
 func main() {
 
-	//if len(os.Args) > 1 {
-	//
-	//	command := os.Args[1]
-	//	if command == "add-source" {
-	//		// ! Execute CLI for source addition.
-	//		// ! Maybe use a flag set to separate flags.
-	//		// ! source := flag.NewFlagSet("add-source", flag.ExitOnError)
-	//	}
-	//
-	//	return
-	//}
-
 	configFlags := map[string]interface{}{}
 
 	configFlags["version"] = flag.String(
@@ -39,7 +27,7 @@ func main() {
 
 	configFlags["exec"] = flag.Bool(
 		"exec",
-		false,
+		true,
 		"enable execution of configuration defined actions",
 	)
 

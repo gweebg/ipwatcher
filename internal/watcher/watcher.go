@@ -13,41 +13,40 @@ import (
 )
 
 var (
+	// ErrorDatabase represents an error specific to database operations
 	ErrorDatabase = errors.New("database error")
+	// ErrorNotifier represents an error specific to notifier operations
 	ErrorNotifier = errors.New("notifier error")
+	// ErrorExecutor represents an error specific to the executor
 	ErrorExecutor = errors.New("executor error")
-	ErrorFetch    = errors.New("fetch error")
+	// ErrorFetch represents an error specific to address fetching operations
+	ErrorFetch = errors.New("fetch error")
 )
 
+// Watcher is the main part of the IP watcher service. According to a defined
+// timeout checks for address changes, invoking handlers to when different
+// actions are triggered (on_change, on_match and on_error).
 type Watcher struct {
-
 	// Version indicates the versions the watcher is supposed to track (v4|v6|all)
 	Version string
-	// allowApi exposes an API with the database records
-	allowApi bool
-	// allowExec enables the execution of actions upon an event
-	allowExec bool
-
-	// notifier allows for email notification sending
-	notifier *Notifier
-	// fetcher is responsible for fetching information relative to the address
-	fetcher *Fetcher
-	// executor allows for the execution of configuration defined actions
-	executor *Executor
-
 	// Timeout represents the duration between each address query
 	Timeout time.Duration
-	// ticker is a *time.Ticker object responsible for waiting Timeout
-	ticker *time.Ticker
 
-	// tickerQuitChan allows the stop of the ticker
+	allowApi  bool
+	allowExec bool
+
+	notifier *Notifier
+	fetcher  *Fetcher
+	executor *Executor
+
+	ticker         *time.Ticker
 	tickerQuitChan chan struct{}
-	// errorChan handles errors coming from the event handlers
-	errorChan chan error
-	// logger is the logger for this service
-	logger zerolog.Logger
+	errorChan      chan error
+	logger         zerolog.Logger
 }
 
+// NewWatcher creates a new watcher. Its parameters are set according
+// to the values set on the YAML configuration file.
 func NewWatcher() *Watcher {
 
 	c := config.GetConfig()
@@ -55,13 +54,13 @@ func NewWatcher() *Watcher {
 	timeout := time.Duration(
 		c.GetInt("watcher.timeout")) * time.Second
 
+	// only set the notifier and executor if the flags for it are set to true
 	var notifier *Notifier = nil
 	if c.GetBool("flags.notify") {
 		notifier = NewNotifier()
 	}
 
 	errorChan := make(chan error)
-
 	var executor *Executor = nil
 	if c.GetBool("flags.exec") {
 		executor = NewExecutor(errorChan)
@@ -130,14 +129,13 @@ func (w *Watcher) HandleEvent(eventType string, ctx context.Context) {
 	if handler != nil {
 
 		if handler.Notify && w.notifier != nil {
-
 			err := w.notifier.NotifyMail(ctx)
 			if err != nil {
 				w.errorChan <- errors.Join(err, ErrorNotifier)
 			}
 			w.logger.Info().
 				Str("event", eventType).
-				Msgf("recipients (%d) notified", len(w.notifier.Recipients))
+				Msgf("notified %d recipients", len(w.notifier.Recipients))
 		}
 
 		if w.executor != nil {

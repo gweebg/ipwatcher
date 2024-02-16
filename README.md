@@ -10,7 +10,7 @@ Installing `ipwatcher` is pretty straightforward, clone the repository and then 
 > cd ipwatcher
 > make
 ```
-This should generate the executable at `ipwatcher/bin`, with the name `ipwatcher`.
+This should generate the executable at `ipwatcher/build`, with the name `ipwatcher`.
 
 To use the application,  just execute `ipwatcher` with:
 ```bash

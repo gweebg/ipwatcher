@@ -6,11 +6,11 @@ import (
 	"reflect"
 )
 
-var config *viper.Viper
+var (
+	config *viper.Viper
+)
 
 func Init(userFlags map[string]interface{}) {
-
-	// todo: hot-reload upon configuration changes, use viper
 
 	config = viper.New()
 
@@ -18,6 +18,11 @@ func Init(userFlags map[string]interface{}) {
 	config.SetConfigName("config")
 	config.AddConfigPath("./")
 	config.AddConfigPath("config/")
+
+	load(userFlags)
+}
+
+func load(userFlags map[string]interface{}) {
 
 	err := config.ReadInConfig()
 	utils.Check(err, "")
