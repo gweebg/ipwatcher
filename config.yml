@@ -1,0 +1,50 @@
+sources:
+    - field: ip
+      name: "ipify"
+      type: json
+      url:
+        v4: https://api.ipify.org?format=json
+        v6: https://api6.ipify.org?format=json
+
+    - field: ip
+      name: "myip"
+      type: json
+      url:
+        v4: https://api4.my-ip.io/v2/ip.json
+        v6: https://api6.my-ip.io/v2/ip.json
+
+watcher:
+
+  timeout: 10 # 43200 # 12 hours
+  # force_source: "ipify" # should not be included if not used
+  max_execution_time: 10
+
+  events:
+    on_change:
+      notify: false
+      actions:
+        - type: "python"
+          path: "scripts/example_script.py"
+          args: "-flag this_is_a_flag"
+
+    on_match:
+      notify: false
+
+    on_error:
+      notify: false
+
+  smtp:
+    smtp_server: "smtp.gmail.com" # or any other smtp servers
+    smtp_port: 587
+
+    username: "username"
+    password: "app_password"
+
+    from_address: "example_from@gmail.com"
+
+    recipients:
+      - address: "example@gmail.com"
+        name: "Example"
+
+  api:
+    port: 5555
