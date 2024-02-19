@@ -18,7 +18,7 @@ func Init(userFlags map[string]interface{}) {
 	config.SetConfigName("config")
 	config.AddConfigPath("./")
 	config.AddConfigPath("config/")
-
+	// todo: add load from flags lamoo!
 	load(userFlags)
 }
 
