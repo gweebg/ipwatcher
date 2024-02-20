@@ -35,17 +35,14 @@ watcher:
     smtp_server: "smtp.gmail.com"
     smtp_port: 587
 
-    username: "asadashinon2017@gmail.com"
-    password: "mpdi rruf rrro utix"
+    username: "example@gmail.com"
+    password: "token"
 
-    from_address: "asadashinon2017@gmail.com"
+    from_address: "example@gmail.com"
 
     recipients:
-      #      - address: "guilherme.g.sampaio@gmail.com"
-      #        name: "Guilherme Sampaio"
-
-      - address: "guilherme.g.sampaio@proton.me"
-        name: "Guilherme Sampaio (Proton)"
+      - address: "example@gmail.com"
+        name: "Example Name"
 
   api:
     port: 5555
