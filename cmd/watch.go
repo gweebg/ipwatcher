@@ -27,7 +27,7 @@ func main() {
 
 	configFlags["exec"] = flag.Bool(
 		"exec",
-		true,
+		false,
 		"enable execution of configuration defined actions",
 	)
 

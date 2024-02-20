@@ -71,6 +71,7 @@ func (e *Executor) Execute(action config.Exec) {
 
 	args := strings.Split(action.Args, " ")
 	args = append([]string{action.Path}, args...)
+	// args = append([]string{"-u"}, args...) // todo: change action formats
 
 	cmd := exec.CommandContext(ctx, action.Type, args...)
 
@@ -80,6 +81,14 @@ func (e *Executor) Execute(action config.Exec) {
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			e.logger.Warn().Str("action", action.String()).Err(errors.New(fmt.Sprintf("execution time exceeded (max is %v)", e.Timeout))).Send()
 			_ = cmd.Process.Kill() // try to kill just in case of children processes
+		}
+	}()
+
+	stdout, _ := cmd.StdoutPipe()
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			e.logger.Debug().Str("command", action.String()).Msg(scanner.Text())
 		}
 	}()
 
