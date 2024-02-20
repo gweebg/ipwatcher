@@ -3,10 +3,11 @@ package watcher
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/gweebg/ipwatcher/internal/config"
 	"github.com/rs/zerolog"
 	"gopkg.in/gomail.v2"
-	"time"
 )
 
 // Recipient represents a email recipient defined as per the configuration file

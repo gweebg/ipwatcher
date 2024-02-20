@@ -5,8 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os/exec"
-	"strings"
+	"log"
 	"time"
 
 	"github.com/gweebg/ipwatcher/internal/config"
@@ -40,7 +39,7 @@ func NewExecutor(errorChan chan error) *Executor {
 
 	c := config.GetConfig()
 
-	timeout := c.GetInt64("watcher.max_execution_time")
+	timeout := c.GetInt64("watcher.default_ttl")
 	if timeout == 0 {
 		timeout = 60
 	}
@@ -53,7 +52,7 @@ func NewExecutor(errorChan chan error) *Executor {
 }
 
 // ExecuteSlice executes, in parallel, a slice of config.Exec actions.
-func (e *Executor) ExecuteSlice(actions []config.Exec) {
+func (e *Executor) ExecuteSlice(actions []config.ExecuteAction) {
 	for _, action := range actions {
 		e.logger.Debug().Str("command", action.String()).Msg("executing action")
 		go e.Execute(action)
@@ -64,25 +63,22 @@ func (e *Executor) ExecuteSlice(actions []config.Exec) {
 // file under 'events.<event>.actions'. Runs the action with a timed out context.Context
 // killing the process if a configuration file defined threshold (in seconds) is crossed,
 // limiting the execution time of the action.
-func (e *Executor) Execute(action config.Exec) {
+func (e *Executor) Execute(action config.ExecuteAction) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), e.Timeout)
-	defer cancel()
+	cmd, ctx, cancel := action.Command(e.Timeout)
+	if cancel != nil && ctx != nil {
+		log.Println("with timeout!!!")
+		defer cancel()
 
-	args := strings.Split(action.Args, " ")
-	args = append([]string{action.Path}, args...)
-	// args = append([]string{"-u"}, args...) // todo: change action formats
-
-	cmd := exec.CommandContext(ctx, action.Type, args...)
-
-	// control the execution time of the current action
-	go func() {
-		<-ctx.Done()
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			e.logger.Warn().Str("action", action.String()).Err(errors.New(fmt.Sprintf("execution time exceeded (max is %v)", e.Timeout))).Send()
-			_ = cmd.Process.Kill() // try to kill just in case of children processes
-		}
-	}()
+		// control the execution time of the current action
+		go func() {
+			<-ctx.Done()
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				e.logger.Warn().Str("action", action.String()).Err(fmt.Errorf("execution time exceeded (max is %v)", e.Timeout)).Send()
+				_ = cmd.Process.Kill() // try to kill just in case of children processes
+			}
+		}()
+	}
 
 	stdout, _ := cmd.StdoutPipe()
 	go func() {

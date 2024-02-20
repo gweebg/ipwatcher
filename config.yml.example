@@ -1,0 +1,51 @@
+sources: # define the sources from where to obtain address
+  - name: "ipify" # name of the source
+    type: json # type of the response, json | text
+    field: ip # field of where the address is, only applies to json
+    url:
+      v4: https://api.ipify.org?format=json # ipv4
+      v6: https://api6.ipify.org?format=json # ipv6
+
+  - name: "myip"
+    type: text # here 'type' is 'text', so no 'field' field
+    url:
+      v4: https://api.my-ip.io/v2/ip.txt
+      v6: https://api6.my-ip.io/v2/ip.txt
+
+watcher:
+  timeout: 20 # checks timeout in seconds
+  force_source: "ipify" # force the use of a source, must match 'name' in sources
+  max_execution_time: 100 # max execution time of a 'script' action in seconds, value of 0 ignores execution time
+
+  events:
+    on_change: # when address changes
+      notify: false # enable or disable notifications
+
+    on_match: # when address doesn't change
+      notify: false
+      actions:
+        - type: "execute" # type of the action, script
+          bin: "python" # executable to execute, only applies to 'type' of 'script'
+          args: "-u scripts/update.py" # arguments to the executable, only applies to 'type' of 'script'
+          max_execution_time: 0 # overwrite max execution time
+
+    on_error: # when an error occurs
+      notify: false
+  smtp:
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+
+    username: "asadashinon2017@gmail.com"
+    password: "mpdi rruf rrro utix"
+
+    from_address: "asadashinon2017@gmail.com"
+
+    recipients:
+      #      - address: "guilherme.g.sampaio@gmail.com"
+      #        name: "Guilherme Sampaio"
+
+      - address: "guilherme.g.sampaio@proton.me"
+        name: "Guilherme Sampaio (Proton)"
+
+  api:
+    port: 5555

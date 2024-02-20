@@ -1,68 +1,63 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os/exec"
 	"reflect"
 	"strings"
+	"time"
 )
 
-type Exec struct {
-	// Type of the script (python|bash|binary)
+type ExecuteAction struct {
 	Type string `mapstructure:"type"`
-	// Path to the script (full path)
-	Path string `mapstructure:"path"`
-	// Args sets the arguments for the script
+	Bin  string `mapstructure:"bin"`
 	Args string `mapstructure:"args"`
-	// ExecPath is the path of the application to run the action
-	ExecPath string
+	TTL  int    `mapstructure:"ttl"`
 }
 
-func (s Exec) Validate() error {
+func (s ExecuteAction) Command(ttl time.Duration) (*exec.Cmd, context.Context, context.CancelFunc) {
 
-	// todo: allow for execPath to be specified in the configuration file
-
-	script := strings.ToLower(s.Type)
-	if script != "python" && script != "bash" && script != "binary" {
-		return errors.New("the 'type' field of an action can only be 'python', 'bash' or 'binary', not '" + script + "'")
+	if s.TTL < 0 {
+		return exec.Command(s.Bin, strings.Split(s.Args, " ")...), nil, nil
 	}
 
-	installed := s.CheckInstalled()
-	if !installed {
+	if s.TTL > 0 { // ttl > 0, use this
+		ttl = time.Duration(s.TTL) * time.Second
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), ttl)
+	cmd := exec.CommandContext(ctx, s.Bin, strings.Split(s.Args, " ")...)
+	return cmd, ctx, cancel
+}
+
+func (s ExecuteAction) Validate() error {
+
+	if strings.ToLower(strings.TrimSpace(s.Type)) != "execute" {
+		return errors.New("as for now, 'execute' is the only action type possible")
+	}
+	if !s.CheckInstalled() {
 		return errors.New(
-			"could not find executable for '" + s.Type + "', you can check if it's installed by running 'which " + s.Type +
-				"'.\nalternatively you can specify the full path for the executable on the field 'exec_path' under 'actions'" +
-				" on the configuration file",
+			"could not find executable for '" + s.Bin + "', you can check if it's installed by running 'which " + s.Bin + "'",
 		)
 	}
-
-	if s.Path == "" {
-		return errors.New("the 'path' field is mandatory when used on a action")
-	}
-
 	return nil
 }
 
-func (s Exec) CheckInstalled() bool {
-
-	_, err := exec.LookPath(s.Type)
-	if err != nil {
-		return false
-	}
-
-	return true
+func (s ExecuteAction) CheckInstalled() bool {
+	_, err := exec.LookPath(s.Bin)
+	return err == nil
 }
 
-func (s Exec) String() string {
-	return fmt.Sprintf("%v %v %v", s.Type, s.Path, s.Args)
+func (s ExecuteAction) String() string {
+	str := fmt.Sprintf("%v %v", s.Bin, s.Args)
+	return strings.TrimSpace(str)
 }
 
 type EventHandler struct {
-	// Notify enables notifications via email upon an event
-	Notify bool `mapstructure:"notify"`
-	// Actions define the slice containing which actions to run upon an event
-	Actions []Exec `mapstructure:"actions"`
+	Notify  bool            `mapstructure:"notify"`
+	Actions []ExecuteAction `mapstructure:"actions"`
 }
 
 func (e EventHandler) Validate() error {
@@ -111,15 +106,12 @@ func validateEvents(events Events) error {
 	v := reflect.ValueOf(events)
 
 	for i := 0; i < v.NumField(); i++ {
-
 		value := v.Field(i).Interface().(*EventHandler)
 		if value != nil {
-
 			err := value.Validate()
 			if err != nil {
 				return err
 			}
-
 		}
 	}
 
